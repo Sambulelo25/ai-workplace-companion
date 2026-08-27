@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "@/components/page-header";
 import { ResponsibleAINotice } from "@/components/responsible-ai-notice";
-import { generateChatReply } from "@/lib/mock-ai";
+import { aiChat } from "@/lib/ai.functions";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/chatbot")({
@@ -78,8 +79,13 @@ function Chatbot() {
     setMessages((m) => [...m, { id: Date.now(), role: "user", content }]);
     setLoading(true);
     try {
-      const reply = await generateChatReply(content);
+      const history = messages
+        .filter((m) => m.id !== WELCOME.id)
+        .map((m) => ({ role: m.role, content: m.content }));
+      const reply = await aiChat({ data: { question: content, history } });
       setMessages((m) => [...m, { id: Date.now() + 1, role: "assistant", content: reply }]);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
