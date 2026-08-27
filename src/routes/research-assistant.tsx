@@ -8,7 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "@/components/page-header";
 import { ResponsibleAINotice } from "@/components/responsible-ai-notice";
-import { generateResearch, type ResearchResult } from "@/lib/mock-ai";
+import { aiResearch } from "@/lib/ai.functions";
+
+type ResearchResult = { summary: string; insights: string; points: string; recommendations: string };
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/research-assistant")({
@@ -51,7 +53,9 @@ function ResearchAssistant() {
     }
     setLoading(true);
     try {
-      setResult(await generateResearch({ topic, source, mode }));
+      setResult(await aiResearch({ data: { topic, source, mode } }));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Analysis failed. Please try again.");
     } finally {
       setLoading(false);
     }

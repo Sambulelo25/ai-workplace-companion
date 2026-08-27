@@ -15,7 +15,10 @@ import {
 } from "@/components/ui/select";
 import { PageHeader } from "@/components/page-header";
 import { ResponsibleAINotice } from "@/components/responsible-ai-notice";
-import { generateEmail, type Audience, type Tone } from "@/lib/mock-ai";
+import { aiEmail } from "@/lib/ai.functions";
+
+type Audience = "Client" | "Manager" | "Team";
+type Tone = "Formal" | "Informal" | "Persuasive";
 
 export const Route = createFileRoute("/email-generator")({
   head: () => ({
@@ -51,7 +54,9 @@ function EmailGenerator() {
     }
     setLoading(true);
     try {
-      setResult(await generateEmail({ purpose, audience, tone, instructions }));
+      setResult(await aiEmail({ data: { purpose, audience, tone, instructions } }));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Generation failed. Please try again.");
     } finally {
       setLoading(false);
     }
