@@ -27,7 +27,7 @@ export const Route = createFileRoute("/research-assistant")({
       },
     ],
   }),
-  component: ResearchAssistant;
+  component: ResearchAssistant,
 });
 
 const sectionMeta: { key: keyof ResearchResult; title: string; hint: string }[] = [
