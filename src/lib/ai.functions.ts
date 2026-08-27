@@ -1,31 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-async function chat(system: string, user: string): Promise<string> {
-  const apiKey = process.env["LOVABLE_API_KEY"];
-  if (!apiKey) throw new Error("AI is not configured (missing API key).");
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "google/gemini-3.7-flash",
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-    }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err?.error?.message ?? `AI request failed (HTTP ${res.status}).`);
-  }
-  const data = await res.json();
-  return data.choices?.[0]?.message?.content ?? "";
-}
-
 export const aiEmail = createServerFn({ method: "POST" })
   .inputValidator(
     (data) =>
@@ -39,12 +14,37 @@ export const aiEmail = createServerFn({ method: "POST" })
         .parse(data),
   )
   .handler(async ({ data }) => {
-    return chat(
-      "You are an expert workplace communication assistant. Write professional, specific, ready-to-send emails. Output the email only: start with 'Subject: ...', then the greeting, body, and sign-off. No commentary.",
-      `Write a ${data.tone.toLowerCase()} email to my ${data.audience.toLowerCase()}.\n\nPurpose/context:\n${data.purpose}${
-        data.instructions.trim() ? `\n\nAdditional instructions:\n${data.instructions}` : ""
-      }`,
-    );
+    const apiKey = process.env["LOVABLE_API_KEY"];
+    if (!apiKey) throw new Error("AI is not configured (missing API key).");
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3.7-flash",
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are an expert workplace communication assistant. Write professional, specific, ready-to-send emails. Output the email only: start with 'Subject: ...', then the greeting, body, and sign-off. No commentary.",
+          },
+          {
+            role: "user",
+            content: `Write a ${data.tone.toLowerCase()} email to my ${data.audience.toLowerCase()}.\n\nPurpose/context:\n${data.purpose}${
+              data.instructions.trim() ? `\n\nAdditional instructions:\n${data.instructions}` : ""
+            }`,
+          },
+        ],
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err?.error?.message ?? `AI request failed (HTTP ${res.status}).`);
+    }
+    const json = await res.json();
+    return json.choices?.[0]?.message?.content ?? "";
   });
 
 export const aiResearch = createServerFn({ method: "POST" })
@@ -59,18 +59,43 @@ export const aiResearch = createServerFn({ method: "POST" })
         .parse(data),
   )
   .handler(async ({ data }) => {
+    const apiKey = process.env["LOVABLE_API_KEY"];
+    if (!apiKey) throw new Error("AI is not configured (missing API key).");
     const style =
       data.mode === "simplified"
         ? "Write for a non-expert: plain language, short sentences, no jargon."
         : "Write for a professional audience: concise, precise, business-appropriate.";
-    const text = await chat(
-      `You are an expert research analyst. ${style} Analyse the material and respond with EXACTLY these four sections, each starting with its heading on its own line:\nSUMMARY\nKEY INSIGHTS\nIMPORTANT POINTS\nRECOMMENDATIONS\nUnder each heading provide substantive, specific content grounded in the material (numbered or bulleted lists for insights, points, and recommendations). No other headings or commentary.`,
-      `Topic: ${data.topic || "the submitted material"}\n\nMaterial:\n${data.source || "(No source text provided — base the analysis on the topic itself.)"}`,
-    );
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3.7-flash",
+        messages: [
+          {
+            role: "system",
+            content: `You are an expert research analyst. ${style} Analyse the material and respond with EXACTLY these four sections, each starting with its heading on its own line:\nSUMMARY\nKEY INSIGHTS\nIMPORTANT POINTS\nRECOMMENDATIONS\nUnder each heading provide substantive, specific content grounded in the material (numbered or bulleted lists for insights, points, and recommendations). No other headings or commentary.`,
+          },
+          {
+            role: "user",
+            content: `Topic: ${data.topic || "the submitted material"}\n\nMaterial:\n${data.source || "(No source text provided — base the analysis on the topic itself.)"}`,
+          },
+        ],
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err?.error?.message ?? `AI request failed (HTTP ${res.status}).`);
+    }
+    const json = await res.json();
+    const text: string = json.choices?.[0]?.message?.content ?? "";
     const grab = (from: string, to?: string) => {
-      const start = text.toUpperCase().indexOf(from);
+      const upper = text.toUpperCase();
+      const start = upper.indexOf(from);
       if (start === -1) return "";
-      const end = to ? text.toUpperCase().indexOf(to, start + from.length) : -1;
+      const end = to ? upper.indexOf(to, start + from.length) : -1;
       return text.slice(start + from.length, end === -1 ? undefined : end).trim();
     };
     return {
@@ -87,7 +112,9 @@ export const aiChat = createServerFn({ method: "POST" })
       z
         .object({
           question: z.string().min(1),
-          history: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string() })).max(20),
+          history: z
+            .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string() }))
+            .max(20),
         })
         .parse(data),
   )
