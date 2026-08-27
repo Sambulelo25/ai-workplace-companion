@@ -172,7 +172,7 @@ export async function generateResearch(input: {
 
   const points = (
     sents.length
-      ? sents.slice(0, 5).map((s, i) => `• ${simple ? s.replace(/\s+/g, " ").slice(0, 180) : s}`)
+      ? sents.slice(0, 5).map((s) => `• ${simple ? s.replace(/\s+/g, " ").slice(0, 180) : s}`)
       : [
           `• The scope of ${topic} is defined but needs confirmation from stakeholders.`,
           "• Timelines depend on a small number of critical inputs.",
